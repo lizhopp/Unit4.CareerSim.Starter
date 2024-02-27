@@ -18,10 +18,22 @@ const express = require('express')
 const client = new pg.Client(process.env.DATABASE_URL || 'postgres://localhost/the_acme_notes_db')
 const app = express()
 
-//app routes
 app.use(express.json());
 app.use(require('morgan')('dev'));
-app.post('/api/notes', async (req, res, next) => {});
+
+//app routes
+app.post('/api/notes', async (req, res, next) => {
+    try{
+        const SQL = `INSERT INTO notes(txt)
+        VALUES ($1)
+        RETURNING *`
+        const result = await client.query(SQL, [req.body.txt])
+        res.send(result.rows[0])
+
+    }catch(error){
+        next(error)
+    }
+});
 app.get('/api/notes', async (req, res, next) => {
     try{
         const SQL = `SELECT * from notes ORDER BY ranking ASC;`
@@ -32,8 +44,29 @@ app.get('/api/notes', async (req, res, next) => {
         next(error)
     }
 });
-app.put('/api/notes/:id', async (req, res, next) => {});
-app.delete('/api/notes/:id', async (req, res, next) => {});
+app.put('/api/notes/:id', async (req, res, next) => {
+    try{
+        const SQL = `UPDATE notes
+        SET txt=$1, ranking=$2, updated_at=now()
+        WHERE id=$3 RETURNING *`
+        const result = await client.query(SQL, [req.body.txt, req.body.ranking, req.params.id])
+        res.send(result.rows[0])
+
+    }catch(error){
+        next(error)
+    }
+});
+app.delete('/api/notes/:id', async (req, res, next) => {
+    try{
+        const SQL = `DELETE FROM notes
+        WHERE id=$1`
+        const result = await client.query(SQL, [req.params.id])
+        res.sendStatus(204)
+
+    }catch(error){
+        next(error)
+    }
+});
 
 const init = async () => {
     await client.connect();
